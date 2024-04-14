@@ -1,5 +1,5 @@
 {
-  "name": "hyper-cmd-lib-net",
+  "name": "@holesail/hyper-cmd-lib-net",
   "version": "0.1.0",
   "description": "HyperCmd Net lib",
   "main": "index.js",
@@ -7,12 +7,12 @@
   "devDependencies": {},
   "repository": {
     "type": "git",
-    "url": "https://github.com/holepunchto/hyper-cmd-lib-net.git"
+    "url": "https://github.com/holesail/hyper-cmd-lib-net.git"
   },
-  "author": "Holepunch",
+  "author": "supersuryaansh",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/holepunchto/hyper-cmd-lib-net/issues"
+    "url": "https://github.com/holesail/hyper-cmd-lib-net/issues"
   },
-  "homepage": "https://github.com/holepunchto/hyper-cmd-lib-net"
+  "homepage": "https://github.com/holesail/hyper-cmd-lib-net/s"
 }

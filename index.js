@@ -1,4 +1,4 @@
-const { gzip, gunzip } = require('node:zlib')
+
 
 function connPiper (connection, _dst, opts = {}, stats = {}) {
   const loc = _dst()
@@ -28,6 +28,7 @@ function connPiper (connection, _dst, opts = {}, stats = {}) {
   let destroyed = false
 
   if (opts.compress) {
+    const { gzip, gunzip } = require('node:zlib')
     const l2c = opts.isServer ? gzip : gunzip
     const c2l = opts.isServer ? gunzip : gzip
 

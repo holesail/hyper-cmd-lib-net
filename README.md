@@ -1,7 +1,13 @@
+Originally forked from https://github.com/holepunchto/hyper-cmd-lib-net
+
+Making node:zlib optional to allow hyper-cmd-lib-net to be imports as a module.
+
+Original author is: Holepunch
+
 # Hyper Cmd Lib Net
 
 Pipe network connections, optionally using compression.
 
 ## Install
 
-`npm i hyper-cmd-lib-net`
+`npm i @holesail/hyper-cmd-lib-net`
