@@ -27,39 +27,6 @@ function connPiper (connection, _dst, opts = {}, stats = {}) {
 
   let destroyed = false
 
-  if (opts.compress) {
-    const { gzip, gunzip } = require('node:zlib')
-    const l2c = opts.isServer ? gzip : gunzip
-    const c2l = opts.isServer ? gunzip : gzip
-
-    loc.on('data', d => {
-      loc.pause()
-      l2c(d, (err, o) => {
-        loc.resume()
-        if (err) {
-          console.error(err)
-          destroy(err)
-          return
-        }
-
-        connection.write(o)
-      })
-    })
-
-    connection.on('data', d => {
-      connection.pause()
-      c2l(d, (err, o) => {
-        connection.resume()
-        if (err) {
-          console.error(err)
-          destroy(err)
-          return
-        }
-
-        loc.write(o)
-      })
-    })
-  } else {
     loc.on('data', d => {
       connection.write(d)
     })
@@ -67,7 +34,6 @@ function connPiper (connection, _dst, opts = {}, stats = {}) {
     connection.on('data', d => {
       loc.write(d)
     })
-  }
 
   loc.on('error', destroy).on('close', destroy)
   connection.on('error', destroy).on('close', destroy)
