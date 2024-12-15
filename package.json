@@ -1,14 +1,8 @@
 {
   "name": "@holesail/hyper-cmd-lib-net",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "HyperCmd Net lib",
   "main": "index.js",
-  "dependencies": {
-    "b4a": "^1.6.7",
-    "bare-dgram": "^1.0.1",
-    "standard": "^17.1.2",
-    "udx-native": "^1.14.4"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/holesail/hyper-cmd-lib-net.git"
@@ -18,5 +12,11 @@
   "bugs": {
     "url": "https://github.com/holesail/hyper-cmd-lib-net/issues"
   },
-  "homepage": "https://github.com/holesail/hyper-cmd-lib-net/s"
+  "homepage": "https://github.com/holesail/hyper-cmd-lib-net/s",
+  "devDependencies": {
+    "standard": "^17.1.2"
+  },
+  "dependencies": {
+    "bare-dgram": "^1.0.1"
+  }
 }
