@@ -6,7 +6,7 @@ Original author is: Holepunch
 
 # Hyper Cmd Lib Net
 
-Pipe network connections, optionally using compression.
+Pipe network connections, supports both UDP and TCP.
 
 ## Install
 
