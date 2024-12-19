@@ -7,6 +7,12 @@
     "type": "git",
     "url": "https://github.com/holesail/hyper-cmd-lib-net.git"
   },
+  "imports": {
+    "events": {
+      "bare": "bare-events",
+      "default": "events"
+    }
+  },
   "author": "supersuryaansh",
   "license": "Apache-2.0",
   "bugs": {
