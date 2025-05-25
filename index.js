@@ -75,7 +75,7 @@ function connPiper (connection, _dst, opts = {}, stats = {}) {
   return {}
 }
 
-class udpSocket {
+class UdpSocket {
   constructor (opts) {
     this.opts = opts
     this.server = dgram.createSocket('udp4')
@@ -114,52 +114,118 @@ class udpSocket {
   }
 }
 
-class udpConnPiper {
-  constructor (connection, _dst, opts = {}, stats = {}) {
-    this.loc = _dst()
-    this.connection = connection
+class UdpConnPiper {
+  constructor (remote, local, opts = {}) {
+    this.opts = opts
+    this.remote = remote
+    this.local = local
+    this.client = opts.client
+    this.debug = opts.debug || false
 
-    this.stats = {
-      rejectCnt: 0,
-      locCnt: 0,
-      remCnt: 0
-    }
-
+    this.retryDelay = opts.retryDelay || 2000
     this.destroyed = false
 
-    // Connect
+    this._bindListeners()
+
     this.connect()
   }
 
+  _bindListeners () {
+    this.bound = {
+      onLocMessage: this.onLocMessage.bind(this),
+      onConnectionMessage: this.onConnectionMessage.bind(this),
+      onLocError: this._handleError.bind(this),
+      onLocClose: this._handleError.bind(this),
+      onConnectionError: this._handleError.bind(this),
+      onConnectionClose: this._handleError.bind(this)
+    }
+  }
+
   connect () {
-    if (this.loc === null) {
-      this.connection.destroy()
+    if (this.destroyed) return
+
+    this.removeListeners()
+
+    this.localStream = typeof this.local === 'function' ? this.local() : this.local
+    this.remoteStream = typeof this.remote === 'function' ? this.remote() : this.remote
+
+    if (!this.localStream || !this.remoteStream) {
+      this.destroy()
       return
     }
 
-    this.loc.event.on('message', (msg, rinfo) => {
-      this.connection.trySend(msg)
-    })
+    this.attachListeners()
+  }
 
-    this.connection.on('message', (msg) => {
-      this.loc.write(msg)
-    })
+  attachListeners () {
+    this.localStream.event.on('message', this.bound.onLocMessage)
+    this.localStream.server.on('error', this.bound.onLocError)
+    this.localStream.server.on('close', this.bound.onLocClose)
 
-    this.loc.server.on('error', this.destroy).on('close', this.destroy)
-    this.connection.on('error', this.destroy).on('close', this.destroy)
+    this.remoteStream.on('message', this.bound.onConnectionMessage)
+    this.remoteStream.on('error', this.bound.onConnectionError)
+    this.remoteStream.on('close', this.bound.onConnectionClose)
+  }
+
+  removeListeners () {
+    if (this.localStream) {
+      this.localStream.event.off('message', this.bound.onLocMessage)
+      this.localStream.server.off('error', this.bound.onLocError)
+      this.localStream.server.off('close', this.bound.onLocClose)
+    }
+
+    if (this.remoteStream) {
+      this.remoteStream.off('message', this.bound.onConnectionMessage)
+      this.remoteStream.off('error', this.bound.onConnectionError)
+      this.remoteStream.off('close', this.bound.onConnectionClose)
+    }
+  }
+
+  onLocMessage (msg, rinfo) {
+    if (this.remoteStream && !this.destroyed) {
+      this.remoteStream.trySend?.(msg)
+    }
+  }
+
+  onConnectionMessage (msg) {
+    if (this.localStream && !this.destroyed) {
+      this.localStream.write?.(msg)
+    }
+  }
+
+  _handleError (err) {
+    this.destroy(err)
   }
 
   destroy (err) {
-    // TODO: Add destroy functionality
+    if (this.destroyed) return
+    this.destroyed = true
+
+    this.removeListeners()
+
+    try { this.localStream?.destroy?.(err) } catch (e) {}
+    try { this.remoteStream?.close?.(err) } catch (e) {}
+
+    if (this.client) {
+      setTimeout(() => {
+        this.destroyed = false
+        this.connect()
+      }, this.retryDelay)
+    }
   }
 }
 
-function udpConnect (opts) {
-  return new udpSocket(opts)
+function udpConnect (opts, callback) {
+  const socket = new UdpSocket(opts)
+  if (typeof callback === 'function') {
+    callback(socket)
+  } else {
+    return socket
+  }
 }
 
-function udpPiper (connection, _dst, opts = {}, stats = {}) {
-  return new udpConnPiper(connection, _dst, opts = {}, stats = {})
+function udpPiper (connection, _dst, opts) {
+  return new UdpConnPiper(connection, _dst, opts)
 }
 
 module.exports = {
