@@ -2,10 +2,10 @@ const dgram = require('bare-dgram')
 const EventEmitter = require('events')
 
 function connPiper (connection, _dst, opts = {}, stats = {}) {
-  if (opts.log) console.log(`${new Date().toISOString()} [LibNet] Starting TCP connPiper`)
+  opts.logger?.log('Starting TCP connPiper')
   const loc = _dst()
   if (loc === null) {
-    if (opts.log) console.log(`${new Date().toISOString()} [LibNet] Connection rejected (null destination)`)
+    opts.logger?.log('Connection rejected (null destination)')
     connection.destroy() // don't return rejection error
     if (!stats.rejectCnt) {
       stats.rejectCnt = 0
@@ -23,37 +23,38 @@ function connPiper (connection, _dst, opts = {}, stats = {}) {
   stats.remCnt++
   let destroyed = false
   loc.on('data', d => {
-    if (opts.log) console.log(`${new Date().toISOString()} [LibNet] Data from local to remote: ${d.length} bytes`)
+    opts.logger?.log(`Data from local to remote: ${d.length} bytes`)
     connection.write(d)
   })
   connection.on('data', d => {
-    if (opts.log) console.log(`${new Date().toISOString()} [LibNet] Data from remote to local: ${d.length} bytes`)
+    opts.logger?.log(`Data from remote to local: ${d.length} bytes`)
     loc.write(d)
   })
   loc.on('error', destroy).on('close', destroy)
   connection.on('error', destroy).on('close', destroy)
   loc.on('end', () => {
-    if (opts.log) console.log(`${new Date().toISOString()} [LibNet] Local end, ending connection`)
+    opts.logger?.log('Local end, ending connection')
     connection.end()
   })
   connection.on('end', () => {
-    if (opts.log) console.log(`${new Date().toISOString()} [LibNet] Connection end, ending local`)
+    opts.logger?.log('Connection end, ending local')
     loc.end()
   })
   loc.on('connect', err => {
-    if (opts.log) {
-      if (err) {
-        console.log(`${new Date().toISOString()} [LibNet] Connect error: ${err.message}`)
-      } else {
-        console.log(`${new Date().toISOString()} [LibNet] Connected`)
-      }
+    if (opts.debug) {
+      console.log('connected')
+    }
+    if (err) {
+      opts.logger?.error(err.message)
+    } else {
+      opts.logger?.log('Connected')
     }
   })
   function destroy (err) {
     if (destroyed) {
       return
     }
-    if (opts.log) console.log(`${new Date().toISOString()} [LibNet] Destroying connPiper${err ? ` due to error: ${err.message}` : ''}`)
+    opts.logger?.log(`Destroying connPiper${err ? ` due to error: ${err.message}` : ''}`)
     stats.locCnt--
     stats.remCnt--
     destroyed = true
@@ -76,7 +77,7 @@ class UdpSocket {
     this.event = new EventEmitter()
     this.rinfo = null
     this.connect()
-    if (opts.log) console.log(`${new Date().toISOString()} [LibNet] UDP socket created${opts.bind ? `, binding to ${opts.host}:${opts.port}` : ''}`)
+    this.opts.logger?.log(`UDP socket created${opts.bind ? `, binding to ${opts.host}:${opts.port}` : ''}`)
   }
 
   connect () {
@@ -84,22 +85,22 @@ class UdpSocket {
       this.server.bind(this.opts.port, this.opts.host)
     }
     this.server.on('message', (msg, rinfo) => {
-      if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] UDP message from server: ${msg.length} bytes from ${rinfo.address}:${rinfo.port}`)
+      this.opts.logger?.log(`UDP message from server: ${msg.length} bytes from ${rinfo.address}:${rinfo.port}`)
       this.event.emit('message', msg, rinfo)
       this.rinfo = rinfo
     })
     this.client.on('message', (response, rinfo) => {
-      if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] UDP message from client: ${response.length} bytes from ${rinfo.address}:${rinfo.port}`)
+      this.opts.logger?.log(`UDP message from client: ${response.length} bytes from ${rinfo.address}:${rinfo.port}`)
       this.event.emit('message', response)
     })
     this.client.on('error', (err) => {
-      console.error(`UDP error: \n${err.stack}`)
+      this.opts.logger?.error(`UDP error: ${err.stack}`)
       this.client.close()
     })
   }
 
   write (msg) {
-    if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] Writing UDP message: ${msg.length} bytes`)
+    this.opts.logger?.log(`Writing UDP message: ${msg.length} bytes`)
     if (this.rinfo) {
       this.server.send(msg, 0, msg.length, this.rinfo.port, this.rinfo.address)
     } else {
@@ -119,7 +120,7 @@ class UdpConnPiper {
     this.destroyed = false
     this._bindListeners()
     this.connect()
-    if (opts.log) console.log(`${new Date().toISOString()} [LibNet] Starting UDP piper${opts.client ? ' (client mode)' : ' (server mode)'}`)
+    this.opts.logger?.log(`Starting UDP piper${opts.client ? ' (client mode)' : ' (server mode)'}`)
   }
 
   _bindListeners () {
@@ -135,12 +136,12 @@ class UdpConnPiper {
 
   connect () {
     if (this.destroyed) return
-    if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] Connecting UDP piper`)
+    this.opts.logger?.log('Connecting UDP piper')
     this.removeListeners()
     this.localStream = typeof this.local === 'function' ? this.local() : this.local
     this.remoteStream = typeof this.remote === 'function' ? this.remote() : this.remote
     if (!this.localStream || !this.remoteStream) {
-      if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] UDP connect failed (missing streams)`)
+      this.opts.logger?.log('UDP connect failed (missing streams)')
       this.destroy()
       return
     }
@@ -154,7 +155,7 @@ class UdpConnPiper {
     this.remoteStream.on('message', this.bound.onConnectionMessage)
     this.remoteStream.on('error', this.bound.onConnectionError)
     this.remoteStream.on('close', this.bound.onConnectionClose)
-    if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] UDP listeners attached`)
+    this.opts.logger?.log('UDP listeners attached')
   }
 
   removeListeners () {
@@ -168,37 +169,37 @@ class UdpConnPiper {
       this.remoteStream.off('error', this.bound.onConnectionError)
       this.remoteStream.off('close', this.bound.onConnectionClose)
     }
-    if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] UDP listeners removed`)
+    this.opts.logger?.log('UDP listeners removed')
   }
 
   onLocMessage (msg, rinfo) {
-    if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] UDP message from local: ${msg.length} bytes`)
+    this.opts.logger?.log(`UDP message from local: ${msg.length} bytes`)
     if (this.remoteStream && !this.destroyed) {
       this.remoteStream.trySend?.(msg)
     }
   }
 
   onConnectionMessage (msg) {
-    if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] UDP message from connection: ${msg.length} bytes`)
+    this.opts.logger?.log(`UDP message from connection: ${msg.length} bytes`)
     if (this.localStream && !this.destroyed) {
       this.localStream.write?.(msg)
     }
   }
 
   _handleError (err) {
-    if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] UDP error: ${err ? err.message : 'close'}`)
+    this.opts.logger?.log(`UDP error: ${err ? err.message : 'close'}`)
     this.destroy(err)
   }
 
   destroy (err) {
     if (this.destroyed) return
     this.destroyed = true
-    if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] Destroying UDP piper${err ? ` due to error: ${err.message}` : ''}`)
+    this.opts.logger?.log(`Destroying UDP piper${err ? ` due to error: ${err.message}` : ''}`)
     this.removeListeners()
     try { this.localStream?.destroy?.(err) } catch (e) {}
     try { this.remoteStream?.close?.(err) } catch (e) {}
     if (this.client) {
-      if (this.opts.log) console.log(`${new Date().toISOString()} [LibNet] Scheduling retry in ${this.retryDelay}ms`)
+      this.opts.logger?.log(`Scheduling retry in ${this.retryDelay}ms`)
       setTimeout(() => {
         this.destroyed = false
         this.connect()
@@ -208,8 +209,7 @@ class UdpConnPiper {
 }
 
 function udpConnect (opts, callback) {
-  const socketOpts = { ...opts, log: opts.log }
-  const socket = new UdpSocket(socketOpts)
+  const socket = new UdpSocket(opts)
   if (typeof callback === 'function') {
     callback(socket)
   } else {
