@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "bare-dgram": "^1.0.1",
-    "holesail-logger": "file:../holesail-logger"
-
+    "holesail-logger":  "^1.0.0"
   }
 }
