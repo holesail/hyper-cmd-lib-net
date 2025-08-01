@@ -2,16 +2,22 @@ const dgram = require('bare-dgram')
 const EventEmitter = require('events')
 
 function connPiper (connection, _dst, opts = {}, stats = {}) {
-  const log = (msg) => {
+  const debug = (msg) => {
+    if (opts.logger) opts.logger.debug(msg)
+  }
+  const info = (msg) => {
     if (opts.logger) opts.logger.log(msg)
   }
-  const logError = (msg) => {
+  const warn = (msg) => {
+    if (opts.logger) opts.logger.warn(msg)
+  }
+  const error = (msg) => {
     if (opts.logger) opts.logger.error(msg)
   }
-  log('Starting TCP connPiper')
+  info('Starting TCP connPiper')
   const loc = _dst()
   if (loc === null) {
-    log('Connection rejected (null destination)')
+    warn('Connection rejected (null destination)')
     connection.destroy() // don't return rejection error
     if (!stats.rejectCnt) {
       stats.rejectCnt = 0
@@ -29,38 +35,35 @@ function connPiper (connection, _dst, opts = {}, stats = {}) {
   stats.remCnt++
   let destroyed = false
   loc.on('data', d => {
-    log(`Data from local to remote: ${d.length} bytes`)
+    debug(`Data from local to remote: ${d.length} bytes`)
     connection.write(d)
   })
   connection.on('data', d => {
-    log(`Data from remote to local: ${d.length} bytes`)
+    debug(`Data from remote to local: ${d.length} bytes`)
     loc.write(d)
   })
   loc.on('error', destroy).on('close', destroy)
   connection.on('error', destroy).on('close', destroy)
   loc.on('end', () => {
-    log('Local end, ending connection')
+    debug('Local end, ending connection')
     connection.end()
   })
   connection.on('end', () => {
-    log('Connection end, ending local')
+    debug('Connection end, ending local')
     loc.end()
   })
   loc.on('connect', err => {
-    if (opts.debug) {
-      console.log('connected')
-    }
     if (err) {
-      logError(err.message)
+      error(err.message)
     } else {
-      log('Connected')
+      info('Connected')
     }
   })
   function destroy (err) {
     if (destroyed) {
       return
     }
-    log(`Destroying connPiper${err ? ` due to error: ${err.message}` : ''}`)
+    info(`Destroying connPiper${err ? ` due to error: ${err.message}` : ''}`)
     stats.locCnt--
     stats.remCnt--
     destroyed = true
@@ -82,14 +85,20 @@ class UdpSocket {
     this.client = dgram.createSocket('udp4')
     this.event = new EventEmitter()
     this.rinfo = null
-    this.log = (msg) => {
+    this.debug = (msg) => {
+      if (this.opts.logger) this.opts.logger.debug(msg)
+    }
+    this.info = (msg) => {
       if (this.opts.logger) this.opts.logger.log(msg)
     }
-    this.logError = (msg) => {
+    this.warn = (msg) => {
+      if (this.opts.logger) this.opts.logger.warn(msg)
+    }
+    this.error = (msg) => {
       if (this.opts.logger) this.opts.logger.error(msg)
     }
     this.connect()
-    this.log(`UDP socket created${opts.bind ? `, binding to ${opts.host}:${opts.port}` : ''}`)
+    this.info(`UDP socket created${opts.bind ? `, binding to ${opts.host}:${opts.port}` : ''}`)
   }
 
   connect () {
@@ -97,22 +106,22 @@ class UdpSocket {
       this.server.bind(this.opts.port, this.opts.host)
     }
     this.server.on('message', (msg, rinfo) => {
-      this.log(`UDP message from server: ${msg.length} bytes from ${rinfo.address}:${rinfo.port}`)
+      this.debug(`UDP message from server: ${msg.length} bytes from ${rinfo.address}:${rinfo.port}`)
       this.event.emit('message', msg, rinfo)
       this.rinfo = rinfo
     })
     this.client.on('message', (response, rinfo) => {
-      this.log(`UDP message from client: ${response.length} bytes from ${rinfo.address}:${rinfo.port}`)
+      this.debug(`UDP message from client: ${response.length} bytes from ${rinfo.address}:${rinfo.port}`)
       this.event.emit('message', response)
     })
     this.client.on('error', (err) => {
-      this.logError(`UDP error: ${err.stack}`)
+      this.error(`UDP error: ${err.stack}`)
       this.client.close()
     })
   }
 
   write (msg) {
-    this.log(`Writing UDP message: ${msg.length} bytes`)
+    this.debug(`Writing UDP message: ${msg.length} bytes`)
     if (this.rinfo) {
       this.server.send(msg, 0, msg.length, this.rinfo.port, this.rinfo.address)
     } else {
@@ -127,15 +136,24 @@ class UdpConnPiper {
     this.remote = remote
     this.local = local
     this.client = opts.client
-    this.debug = opts.debug || false
+    this.debugOpt = opts.debug || false
     this.retryDelay = opts.retryDelay || 2000
     this.destroyed = false
-    this.log = (msg) => {
+    this.debug = (msg) => {
+      if (this.opts.logger) this.opts.logger.debug(msg)
+    }
+    this.info = (msg) => {
       if (this.opts.logger) this.opts.logger.log(msg)
+    }
+    this.warn = (msg) => {
+      if (this.opts.logger) this.opts.logger.warn(msg)
+    }
+    this.error = (msg) => {
+      if (this.opts.logger) this.opts.logger.error(msg)
     }
     this._bindListeners()
     this.connect()
-    this.log(`Starting UDP piper${opts.client ? ' (client mode)' : ' (server mode)'}`)
+    this.info(`Starting UDP piper${opts.client ? ' (client mode)' : ' (server mode)'}`)
   }
 
   _bindListeners () {
@@ -151,12 +169,12 @@ class UdpConnPiper {
 
   connect () {
     if (this.destroyed) return
-    this.log('Connecting UDP piper')
+    this.debug('Connecting UDP piper')
     this.removeListeners()
     this.localStream = typeof this.local === 'function' ? this.local() : this.local
     this.remoteStream = typeof this.remote === 'function' ? this.remote() : this.remote
     if (!this.localStream || !this.remoteStream) {
-      this.log('UDP connect failed (missing streams)')
+      this.warn('UDP connect failed (missing streams)')
       this.destroy()
       return
     }
@@ -170,7 +188,7 @@ class UdpConnPiper {
     this.remoteStream.on('message', this.bound.onConnectionMessage)
     this.remoteStream.on('error', this.bound.onConnectionError)
     this.remoteStream.on('close', this.bound.onConnectionClose)
-    this.log('UDP listeners attached')
+    this.debug('UDP listeners attached')
   }
 
   removeListeners () {
@@ -184,37 +202,37 @@ class UdpConnPiper {
       this.remoteStream.off('error', this.bound.onConnectionError)
       this.remoteStream.off('close', this.bound.onConnectionClose)
     }
-    this.log('UDP listeners removed')
+    this.debug('UDP listeners removed')
   }
 
   onLocMessage (msg, rinfo) {
-    this.log(`UDP message from local: ${msg.length} bytes`)
+    this.debug(`UDP message from local: ${msg.length} bytes`)
     if (this.remoteStream && !this.destroyed) {
       this.remoteStream.trySend?.(msg)
     }
   }
 
   onConnectionMessage (msg) {
-    this.log(`UDP message from connection: ${msg.length} bytes`)
+    this.debug(`UDP message from connection: ${msg.length} bytes`)
     if (this.localStream && !this.destroyed) {
       this.localStream.write?.(msg)
     }
   }
 
   _handleError (err) {
-    this.log(`UDP error: ${err ? err.message : 'close'}`)
+    this.warn(`UDP error: ${err ? err.message : 'close'}`)
     this.destroy(err)
   }
 
   destroy (err) {
     if (this.destroyed) return
     this.destroyed = true
-    this.log(`Destroying UDP piper${err ? ` due to error: ${err.message}` : ''}`)
+    this.info(`Destroying UDP piper${err ? ` due to error: ${err.message}` : ''}`)
     this.removeListeners()
     try { this.localStream?.destroy?.(err) } catch (e) {}
     try { this.remoteStream?.close?.(err) } catch (e) {}
     if (this.client) {
-      this.log(`Scheduling retry in ${this.retryDelay}ms`)
+      this.info(`Scheduling retry in ${this.retryDelay}ms`)
       setTimeout(() => {
         this.destroyed = false
         this.connect()
