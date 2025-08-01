@@ -23,7 +23,6 @@
     "standard": "^17.1.2"
   },
   "dependencies": {
-    "bare-dgram": "^1.0.1",
-    "holesail-logger":  "^1.0.0"
-  }
+    "bare-dgram": "^1.0.1"
+    }
 }
