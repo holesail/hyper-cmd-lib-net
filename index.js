@@ -3,7 +3,7 @@ const EventEmitter = require('events')
 
 function connPiper (connection, _dst, opts = {}, stats = {}) {
   const logger = opts.logger || { log: () => {} }
-  logger.log({ type: 1, msg: 'Starting TCP connPiper' })
+  logger.log({ type: 1, msg: 'Starting TCP connection piper' })
   const loc = _dst()
   if (loc === null) {
     logger.log({ type: 2, msg: 'Connection rejected (null destination)' })
@@ -52,7 +52,7 @@ function connPiper (connection, _dst, opts = {}, stats = {}) {
     if (destroyed) {
       return
     }
-    logger.log({ type: 1, msg: `Destroying connPiper${err ? ` due to error: ${err.message}` : ''}` })
+    logger.log({ type: 1, msg: `Destroying connection piper${err ? ` due to error: ${err.message}` : ''}` })
     stats.locCnt--
     stats.remCnt--
     destroyed = true
@@ -119,7 +119,7 @@ class UdpConnPiper {
     this.destroyed = false
     this._bindListeners()
     this.connect()
-    this.logger.log({ type: 1, msg: `Starting UDP piper${opts.client ? ' (client mode)' : ' (server mode)'}` })
+    this.logger.log({ type: 1, msg: `Starting UDP connection piper${opts.client ? ' (client mode)' : ' (server mode)'}` })
   }
 
   _bindListeners () {
