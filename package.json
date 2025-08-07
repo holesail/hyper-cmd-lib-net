@@ -1,6 +1,6 @@
 {
   "name": "@holesail/hyper-cmd-lib-net",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "HyperCmd Net lib",
   "main": "index.js",
   "repository": {
