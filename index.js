@@ -1,4 +1,5 @@
-const dgram = require('bare-dgram')
+const dgram = require('dgram')
+const net = require('net')
 const EventEmitter = require('events')
 
 function connPiper (connection, _dst, opts = {}, stats = {}) {
@@ -220,8 +221,120 @@ function udpPiper (connection, _dst, opts) {
   return new UdpConnPiper(connection, _dst, opts)
 }
 
+function createTcpProxy (listenOpts, connectRemote, piperOpts, stats, onListen) {
+  const proxy = net.createServer({ allowHalfOpen: true }, (c) => {
+    connPiper(
+      c,
+      connectRemote,
+      piperOpts,
+      stats
+    )
+  })
+  proxy.listen(listenOpts.port, listenOpts.host, onListen)
+  return proxy
+}
+
+function pipeTcpServer (remoteStream, localOpts, piperOpts, stats) {
+  connPiper(
+    remoteStream,
+    () => net.connect({
+      port: +localOpts.port,
+      host: localOpts.host,
+      allowHalfOpen: true
+    }),
+    piperOpts,
+    stats
+  )
+}
+
+function createUdpFramedProxy (listenOpts, connectRemote, logger, onBind) {
+  const proxySocket = dgram.createSocket('udp4')
+  const clients = new Map()
+
+  proxySocket.on('error', (err) => {
+    logger.log({ type: 3, msg: `Proxy socket error: ${err.stack}` })
+    proxySocket.close()
+  })
+
+  proxySocket.on('message', (msg, rinfo) => {
+    const clientId = `${rinfo.address}:${rinfo.port}`
+    logger.log({ type: 0, msg: `UDP message from ${clientId}: ${msg.length} bytes` })
+    let client = clients.get(clientId)
+    if (!client) {
+      const remoteStream = connectRemote()
+      client = { remoteStream, rinfo, buffer: Buffer.alloc(0) }
+      clients.set(clientId, client)
+      remoteStream.on('data', (chunk) => {
+        client.buffer = Buffer.concat([client.buffer, chunk])
+        while (client.buffer.length >= 4) {
+          const len = client.buffer.readUInt32BE(0)
+          if (client.buffer.length < 4 + len) break
+          const response = client.buffer.slice(4, 4 + len)
+          logger.log({ type: 0, msg: `UDP response for ${clientId}: ${response.length} bytes` })
+          proxySocket.send(response, 0, response.length, rinfo.port, rinfo.address, (err) => {
+            if (err) logger.log({ type: 3, msg: `Send error to ${clientId}: ${err.stack}` })
+          })
+          client.buffer = client.buffer.slice(4 + len)
+        }
+      })
+      remoteStream.on('error', (err) => {
+        logger.log({ type: 3, msg: `Remote error for ${clientId}: ${err.stack}` })
+        clients.delete(clientId)
+        remoteStream.destroy()
+      })
+      remoteStream.on('close', () => {
+        logger.log({ type: 0, msg: `Remote close for ${clientId}` })
+        clients.delete(clientId)
+      })
+    }
+    const lenBuf = Buffer.alloc(4)
+    lenBuf.writeUInt32BE(msg.length, 0)
+    client.remoteStream.write(Buffer.concat([lenBuf, msg]))
+  })
+
+  proxySocket.bind(listenOpts.port, listenOpts.host, onBind)
+
+  return { proxySocket, clients }
+}
+
+function pipeUdpFramedServer (remoteStream, localOpts, logger) {
+  const localSocket = dgram.createSocket('udp4')
+  let buffer = Buffer.alloc(0)
+  localSocket.on('error', (err) => {
+    logger.log({ type: 3, msg: `Local UDP socket error: ${err.stack}` })
+    remoteStream.destroy(err)
+  })
+  localSocket.on('message', (msg) => {
+    logger.log({ type: 0, msg: `Data from local to remote: ${msg.length} bytes` })
+    const lenBuf = Buffer.alloc(4)
+    lenBuf.writeUInt32BE(msg.length, 0)
+    remoteStream.write(Buffer.concat([lenBuf, msg]))
+  })
+  remoteStream.on('data', (chunk) => {
+    logger.log({ type: 0, msg: `Data from remote to local: ${chunk.length} bytes` })
+    buffer = Buffer.concat([buffer, chunk])
+    while (buffer.length >= 4) {
+      const len = buffer.readUInt32BE(0)
+      if (buffer.length < 4 + len) break
+      const msg = buffer.slice(4, 4 + len)
+      localSocket.send(msg, 0, msg.length, +localOpts.port, localOpts.host, (err) => {
+        if (err) logger.log({ type: 3, msg: `Send error to local: ${err.stack}` })
+      })
+      buffer = buffer.slice(4 + len)
+    }
+  })
+  remoteStream.on('end', () => localSocket.close())
+  localSocket.on('close', () => remoteStream.end())
+  remoteStream.on('error', (err) => localSocket.close())
+  localSocket.on('error', (err) => remoteStream.destroy(err))
+}
+
 module.exports = {
   connPiper,
   udpPiper,
-  udpConnect
+  udpConnect,
+  createTcpProxy,
+  pipeTcpServer,
+  createUdpFramedProxy,
+  pipeUdpFramedServer
 }
