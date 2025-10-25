@@ -1,7 +1,23 @@
-# Hyper Cmd Lib Net (Fork of Holepunchto/hyper-cmd-lib-net)
+# Hyper Cmd Lib Net
 
-Custom connection piper that supports both UDP and TCP.
+Network Library to Interface with Hyperswarm and local connections. Supports both UDP and TCP connections.
 
 ## Install
 
 `npm i @holesail/hyper-cmd-lib-net`
+
+## API
+
+#### `connPiper`
+
+#### `udpPiper`
+
+#### `udpConnect`
+
+#### `createTcpProxy`
+
+#### `pipeTcpServer`
+
+#### `createUdpFramedProxy`
+
+#### `pipeUdpFramedServer`
