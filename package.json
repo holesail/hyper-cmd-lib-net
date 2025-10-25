@@ -1,6 +1,6 @@
 {
   "name": "@holesail/hyper-cmd-lib-net",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "description": "Network Library to Interface with Hyperswarm and local connections",
   "main": "index.js",
   "scripts": {
@@ -21,7 +21,7 @@
   "bugs": {
     "url": "https://github.com/holesail/hyper-cmd-lib-net/issues"
   },
-  "homepage": "https://github.com/holesail/hyper-cmd-lib-net/s",
+  "homepage": "https://github.com/holesail/hyper-cmd-lib-net/",
   "dependencies": {
     "bare-dgram": "^1.0.1"
   },
