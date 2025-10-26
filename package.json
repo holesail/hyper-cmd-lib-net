@@ -1,6 +1,6 @@
 {
   "name": "@holesail/hyper-cmd-lib-net",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Network Library to Interface with Hyperswarm and local connections",
   "main": "index.js",
   "scripts": {
