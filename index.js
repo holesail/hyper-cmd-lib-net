@@ -91,28 +91,18 @@ class UdpSocket {
     })
     this.client.on('message', (response, rinfo) => {
       this.logger.log({ type: 0, msg: `UDP message from client: ${response.length} bytes from ${rinfo.address}:${rinfo.port}` })
-      this.event.emit('message', response, rinfo)
-      this.rinfo = rinfo
+      this.event.emit('message', response)
     })
     this.client.on('error', (err) => {
       this.logger.log({ type: 3, msg: `UDP error: ${err.stack}` })
-      this.event.emit('error', err) // Forward error
       this.client.close()
     })
-    this.server.on('error', (err) => {
-      this.logger.log({ type: 3, msg: `UDP server error: ${err.stack}` })
-      this.event.emit('error', err) // Forward error
-      this.server.close()
-    })
-    this.client.on('close', () => this.event.emit('close')) // Forward close
-    this.server.on('close', () => this.event.emit('close')) // Forward close
   }
 
-  write (msg, rinfo) {
+  write (msg) {
     this.logger.log({ type: 0, msg: `Writing UDP message: ${msg.length} bytes` })
-    const targetRinfo = rinfo || this.rinfo
-    if (targetRinfo) {
-      this.server.send(msg, 0, msg.length, targetRinfo.port, targetRinfo.address)
+    if (this.rinfo) {
+      this.server.send(msg, 0, msg.length, this.rinfo.port, this.rinfo.address)
     } else {
       this.client.send(msg, 0, msg.length, this.opts.port, this.opts.host)
     }
@@ -162,10 +152,9 @@ class UdpConnPiper {
     this.localStream.event.on('message', this.bound.onLocMessage)
     this.localStream.server.on('error', this.bound.onLocError)
     this.localStream.server.on('close', this.bound.onLocClose)
-
-    this.remoteStream.event.on('message', this.bound.onConnectionMessage)
-    this.remoteStream.event.on('error', this.bound.onConnectionError)
-    this.remoteStream.event.on('close', this.bound.onConnectionClose)
+    this.remoteStream.on('message', this.bound.onConnectionMessage)
+    this.remoteStream.on('error', this.bound.onConnectionError)
+    this.remoteStream.on('close', this.bound.onConnectionClose)
     this.logger.log({ type: 0, msg: 'UDP listeners attached' })
   }
 
@@ -176,9 +165,9 @@ class UdpConnPiper {
       this.localStream.server.off('close', this.bound.onLocClose)
     }
     if (this.remoteStream) {
-      this.remoteStream.event.off('message', this.bound.onConnectionMessage)
-      this.remoteStream.event.off('error', this.bound.onConnectionError)
-      this.remoteStream.event.off('close', this.bound.onConnectionClose)
+      this.remoteStream.off('message', this.bound.onConnectionMessage)
+      this.remoteStream.off('error', this.bound.onConnectionError)
+      this.remoteStream.off('close', this.bound.onConnectionClose)
     }
     this.logger.log({ type: 0, msg: 'UDP listeners removed' })
   }
@@ -186,15 +175,14 @@ class UdpConnPiper {
   onLocMessage (msg, rinfo) {
     this.logger.log({ type: 0, msg: `UDP message from local: ${msg.length} bytes` })
     if (this.remoteStream && !this.destroyed) {
-      this.remoteStream.write(msg, rinfo)
+      this.remoteStream.trySend?.(msg)
     }
   }
 
-  onConnectionMessage (...args) {
-    const msg = args[0]
+  onConnectionMessage (msg) {
     this.logger.log({ type: 0, msg: `UDP message from connection: ${msg.length} bytes` })
     if (this.localStream && !this.destroyed) {
-      this.localStream.write(msg)
+      this.localStream.write?.(msg)
     }
   }
 
@@ -208,14 +196,8 @@ class UdpConnPiper {
     this.destroyed = true
     this.logger.log({ type: 1, msg: `Destroying UDP piper${err ? ` due to error: ${err.message}` : ''}` })
     this.removeListeners()
-    try {
-      this.localStream?.server?.close()
-      this.localStream?.client?.close()
-    } catch (e) {}
-    try {
-      this.remoteStream?.server?.close()
-      this.remoteStream?.client?.close()
-    } catch (e) {}
+    try { this.localStream?.destroy?.(err) } catch (e) {}
+    try { this.remoteStream?.close?.(err) } catch (e) {}
     if (this.client) {
       this.logger.log({ type: 1, msg: `Scheduling retry in ${this.retryDelay}ms` })
       setTimeout(() => {
@@ -265,11 +247,7 @@ function pipeTcpServer (remoteStream, localOpts, piperOpts, stats) {
   )
 }
 
-function createUdpFramedProxy (listenOpts, connectRemote, logger, stats = {}, onBind) {
-  if (!stats.locCnt) stats.locCnt = 0
-  if (!stats.remCnt) stats.remCnt = 0
-  if (!stats.rejectCnt) stats.rejectCnt = 0
-
+function createUdpFramedProxy (listenOpts, connectRemote, logger, onBind) {
   const proxySocket = dgram.createSocket('udp4')
   const clients = new Map()
 
@@ -283,31 +261,7 @@ function createUdpFramedProxy (listenOpts, connectRemote, logger, stats = {}, on
     logger.log({ type: 0, msg: `UDP message from ${clientId}: ${msg.length} bytes` })
     let client = clients.get(clientId)
     if (!client) {
-      let remoteStream
-      try {
-        remoteStream = connectRemote()
-      } catch (err) {
-        logger.log({ type: 3, msg: `Failed to connect remote for ${clientId}: ${err.stack}` })
-        stats.rejectCnt++
-        return
-      }
-      if (!remoteStream) {
-        logger.log({ type: 2, msg: `Null remote stream for ${clientId}` })
-        stats.rejectCnt++
-        return
-      }
-      stats.locCnt++
-      stats.remCnt++
-      let destroyed = false
-      function destroyClient (err) {
-        if (destroyed) return
-        destroyed = true
-        logger.log({ type: 1, msg: `Destroying client ${clientId}${err ? ` due to error: ${err.message}` : ''}` })
-        stats.locCnt--
-        stats.remCnt--
-        clients.delete(clientId)
-        remoteStream.destroy(err)
-      }
+      const remoteStream = connectRemote()
       client = { remoteStream, rinfo, buffer: Buffer.alloc(0) }
       clients.set(clientId, client)
       remoteStream.on('data', (chunk) => {
@@ -325,11 +279,12 @@ function createUdpFramedProxy (listenOpts, connectRemote, logger, stats = {}, on
       })
       remoteStream.on('error', (err) => {
         logger.log({ type: 3, msg: `Remote error for ${clientId}: ${err.stack}` })
-        destroyClient(err)
+        clients.delete(clientId)
+        remoteStream.destroy()
       })
       remoteStream.on('close', () => {
         logger.log({ type: 0, msg: `Remote close for ${clientId}` })
-        destroyClient()
+        clients.delete(clientId)
       })
     }
     const lenBuf = Buffer.alloc(4)
@@ -342,45 +297,13 @@ function createUdpFramedProxy (listenOpts, connectRemote, logger, stats = {}, on
   return { proxySocket, clients }
 }
 
-function pipeUdpFramedServer (remoteStream, localOpts, logger, stats = {}) {
-  if (!stats.locCnt) stats.locCnt = 0
-  if (!stats.remCnt) stats.remCnt = 0
-  if (!stats.rejectCnt) stats.rejectCnt = 0
-
-  stats.locCnt++
-  stats.remCnt++
-
+function pipeUdpFramedServer (remoteStream, localOpts, logger, stats) {
   const localSocket = dgram.createSocket('udp4')
   let buffer = Buffer.alloc(0)
-  let destroyed = false
-
-  function destroy (err) {
-    if (destroyed) return
-    destroyed = true
-    logger.log({ type: 1, msg: `Destroying UDP server connection${err ? ` due to error: ${err.message}` : ''}` })
-    stats.locCnt--
-    stats.remCnt--
-    localSocket.close()
-    remoteStream.destroy(err)
-  }
-
   localSocket.on('error', (err) => {
     logger.log({ type: 3, msg: `Local UDP socket error: ${err.stack}` })
-    destroy(err)
+    remoteStream.destroy(err)
   })
-  localSocket.on('close', () => {
-    logger.log({ type: 0, msg: 'Local UDP socket closed' })
-    destroy()
-  })
-  remoteStream.on('error', (err) => {
-    logger.log({ type: 3, msg: `Remote error: ${err.stack}` })
-    destroy(err)
-  })
-  remoteStream.on('close', () => {
-    logger.log({ type: 0, msg: 'Remote close' })
-    destroy()
-  })
-
   localSocket.on('message', (msg) => {
     logger.log({ type: 0, msg: `Data from local to remote: ${msg.length} bytes` })
     const lenBuf = Buffer.alloc(4)
@@ -401,6 +324,9 @@ function pipeUdpFramedServer (remoteStream, localOpts, logger, stats = {}) {
     }
   })
   remoteStream.on('end', () => localSocket.close())
+  localSocket.on('close', () => remoteStream.end())
+  remoteStream.on('error', (err) => localSocket.close())
+  localSocket.on('error', (err) => remoteStream.destroy(err))
 }
 
 module.exports = {
