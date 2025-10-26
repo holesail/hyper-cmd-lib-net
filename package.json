@@ -4,6 +4,7 @@
   "description": "Network Library to Interface with Hyperswarm and local connections",
   "main": "index.js",
   "scripts": {
+    "test": "npx prettier . --check",
     "lint": "npx prettier . --write"
   },
   "repository": {
