@@ -24,7 +24,9 @@
   },
   "homepage": "https://github.com/holesail/hyper-cmd-lib-net/",
   "dependencies": {
-    "bare-dgram": "^1.0.1"
+    "bare-dgram": "^1.0.1",
+    "bare-net": "^2.2.0",
+    "net": "npm:bare-net@^2.2.0"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
