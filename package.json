@@ -1,8 +1,11 @@
 {
   "name": "@holesail/hyper-cmd-lib-net",
-  "version": "0.4.0",
-  "description": "HyperCmd Net lib",
+  "version": "1.0.0",
+  "description": "Network Library to Interface with Hyperswarm and local connections",
   "main": "index.js",
+  "scripts": {
+    "lint": "npx prettier . --write"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/holesail/hyper-cmd-lib-net.git"
@@ -18,11 +21,12 @@
   "bugs": {
     "url": "https://github.com/holesail/hyper-cmd-lib-net/issues"
   },
-  "homepage": "https://github.com/holesail/hyper-cmd-lib-net/s",
-  "devDependencies": {
-    "standard": "^17.1.2"
-  },
+  "homepage": "https://github.com/holesail/hyper-cmd-lib-net/",
   "dependencies": {
     "bare-dgram": "^1.0.1"
-    }
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "prettier-config-holepunch": "^2.0.0"
+  }
 }
