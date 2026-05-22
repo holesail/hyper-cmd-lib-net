@@ -1,6 +1,6 @@
 # Hyper Cmd Lib Net
 
-Network Library to Interface with Hyperswarm and local connections. Supports both UDP and TCP connections.
+Network library to pipe local and hypderdht udp/tcp streams.
 
 ## Install
 
@@ -9,10 +9,6 @@ Network Library to Interface with Hyperswarm and local connections. Supports bot
 ## API
 
 #### `connPiper`
-
-#### `udpPiper`
-
-#### `udpConnect`
 
 #### `createTcpProxy`
 
