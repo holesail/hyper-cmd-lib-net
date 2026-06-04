@@ -15,6 +15,10 @@
     "events": {
       "bare": "bare-events",
       "default": "events"
+    },
+    "net": {
+      "bare": "bare-net",
+      "default": "net"
     }
   },
   "author": "supersuryaansh",
