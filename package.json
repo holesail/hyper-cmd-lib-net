@@ -4,7 +4,8 @@
   "description": "Network library to pipe local and hypderdht udp/tcp streams",
   "main": "index.js",
   "scripts": {
-    "test": "npx prettier . --check",
+    "test": "prettier . --check && node test/index.js",
+    "test-bare": "prettier . --check && bare test/index.js",
     "format": "npx prettier . --write"
   },
   "repository": {
@@ -29,11 +30,14 @@
   "homepage": "https://github.com/holesail/hyper-cmd-lib-net/",
   "dependencies": {
     "bare-dgram": "^1.0.1",
-    "bare-net": "^2.3.1",
-    "net": "npm:bare-net@^2.3.1"
+    "bare-net": "^2.3.2",
+    "bare-tcp": "^2.5.3",
+    "net": "npm:bare-net@^2.3.2"
   },
   "devDependencies": {
+    "brittle": "^4.0.0",
     "prettier": "^3.8.3",
-    "prettier-config-holepunch": "^2.0.0"
+    "prettier-config-holepunch": "^2.0.0",
+    "streamx": "^2.28.0"
   }
 }
