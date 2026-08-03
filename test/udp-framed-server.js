@@ -1,6 +1,6 @@
 const test = require('brittle')
 const { pipeUdpFramedServer } = require('../lib/udp-framed.js')
-const { fakeSocket, spyLogger, frame, tick, withEchoUdpServer } = require('./helpers.js')
+const { fakeSocket, createLogger, frame, tick, withEchoUdpServer } = require('./helpers.js')
 
 test('pipeUdpFramedServer - forwards a framed message to the local service and frames the reply back', async function (t) {
   await withEchoUdpServer(async (addr) => {
@@ -98,7 +98,7 @@ test('pipeUdpFramedServer - a frame over maxFrameSize destroys the stream with a
 
 test('pipeUdpFramedServer - a remote stream error destroys the pipe', async function (t) {
   const stream = fakeSocket()
-  const { logger, calls } = spyLogger()
+  const { logger, calls } = createLogger()
   pipeUdpFramedServer(stream, null, { port: 1, host: '127.0.0.1', logger })
 
   const closed = new Promise((resolve) => stream.once('close', resolve))
@@ -122,7 +122,7 @@ test('pipeUdpFramedServer - ends its writable side (no error) when the remote st
 
 test('pipeUdpFramedServer - cleanup only runs once no matter how many teardown events fire', async function (t) {
   const stream = fakeSocket()
-  const { logger, calls } = spyLogger()
+  const { logger, calls } = createLogger()
   pipeUdpFramedServer(stream, null, { port: 1, host: '127.0.0.1', logger })
 
   stream.emit('close')

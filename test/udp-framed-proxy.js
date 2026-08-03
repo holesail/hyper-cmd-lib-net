@@ -1,6 +1,6 @@
 const test = require('brittle')
 const { createUdpFramedProxy } = require('../lib/udp-framed.js')
-const { echoStream, splitEchoStream, spyLogger, tick, bindUdpClient } = require('./helpers.js')
+const { echoStream, splitEchoStream, createLogger, tick, bindUdpClient } = require('./helpers.js')
 
 test('createUdpFramedProxy - round-trips a datagram through the tunnel factory', async function (t) {
   const proxy = createUdpFramedProxy(
@@ -84,7 +84,7 @@ test('createUdpFramedProxy - gives distinct clients independent tunnels and repl
 
 test('createUdpFramedProxy - oversized reply frame destroys the tunnel and evicts the client', async function (t) {
   let calls = 0
-  const { logger, calls: logs } = spyLogger()
+  const { logger, calls: logs } = createLogger()
   const proxy = createUdpFramedProxy(
     () => {
       calls++

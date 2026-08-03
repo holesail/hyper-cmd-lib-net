@@ -1,7 +1,7 @@
 const test = require('brittle')
 const net = require('net')
 const { connPiper } = require('../lib/tcp-piper.js')
-const { spyLogger, tick, listenTcp, tcpPair, closePair, readOnce } = require('./helpers.js')
+const { createLogger, tick, listenTcp, tcpPair, closePair, readOnce } = require('./helpers.js')
 
 test('connPiper - pipes data from a to b', async function (t) {
   const A = await tcpPair()
@@ -36,7 +36,7 @@ test('connPiper - pipes data from b to a', async function (t) {
 test('connPiper - bFactory throwing destroys a and logs the error', async function (t) {
   const A = await tcpPair()
   t.teardown(() => closePair(A))
-  const { logger, calls } = spyLogger()
+  const { logger, calls } = createLogger()
 
   connPiper(
     A.local,
@@ -55,7 +55,7 @@ test('connPiper - bFactory throwing destroys a and logs the error', async functi
 test('connPiper - bFactory returning null destroys a and logs a warning', async function (t) {
   const A = await tcpPair()
   t.teardown(() => closePair(A))
-  const { logger, calls } = spyLogger()
+  const { logger, calls } = createLogger()
 
   connPiper(A.local, () => null, { logger })
   await tick()
@@ -135,7 +135,7 @@ test('connPiper - logs debug messages describing byte counts in both directions'
     closePair(A)
     closePair(B)
   })
-  const { logger, calls } = spyLogger()
+  const { logger, calls } = createLogger()
 
   connPiper(A.local, () => B.local, { logger })
   A.remote.write('abc')
@@ -154,7 +154,7 @@ test('connPiper - logs Connected when b emits a connect event', async function (
   t.teardown(() => bServer.close())
   const addr = await listenTcp(bServer)
 
-  const { logger, calls } = spyLogger()
+  const { logger, calls } = createLogger()
   const b = net.connect(addr.port, '127.0.0.1')
   t.teardown(() => b.destroy())
   // net.connect() hasn't fired 'connect' yet here — connPiper's own listener
@@ -174,7 +174,7 @@ test('connPiper - a ending its readable side ends b in turn', async function (t)
     closePair(A)
     closePair(B)
   })
-  const { logger, calls } = spyLogger()
+  const { logger, calls } = createLogger()
 
   connPiper(A.local, () => B.local, { logger })
   const bFinished = new Promise((resolve) => B.local.once('finish', resolve))

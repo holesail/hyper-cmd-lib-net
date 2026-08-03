@@ -42,7 +42,7 @@ function splitEchoStream() {
   })
 }
 
-function spyLogger() {
+function createLogger() {
   const calls = { debug: [], info: [], warn: [], error: [] }
   const logger = {
     debug: (...a) => calls.debug.push(a),
@@ -120,7 +120,7 @@ module.exports = {
   fakeSocket,
   echoStream,
   splitEchoStream,
-  spyLogger,
+  createLogger,
   frame,
   tick,
   bindUdpClient,
