@@ -150,7 +150,7 @@ test('connPiper - logs Connected when b emits a connect event', async function (
   const A = await tcpPair()
   t.teardown(() => closePair(A))
 
-  const bServer = net.createServer({ allowHalfOpen: true })
+  const bServer = net.createServer()
   t.teardown(() => bServer.close())
   const addr = await listenTcp(bServer)
 

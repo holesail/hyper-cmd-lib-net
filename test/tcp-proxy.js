@@ -1,7 +1,7 @@
 const test = require('brittle')
 const net = require('net')
 const { createTcpProxy } = require('../lib/tcp-piper.js')
-const { echoStream, tick, listenTcp } = require('./helpers.js')
+const { echoStream, tick } = require('./helpers.js')
 
 test('createTcpProxy - proxies a real TCP client round trip through the tunnel factory', async function (t) {
   const addr = await new Promise((resolve) => {
@@ -40,17 +40,19 @@ test('createTcpProxy - calls onListen once the server is bound', async function 
 
 test('createTcpProxy - invokes the tunnel factory once per incoming connection', async function (t) {
   let calls = 0
-  const proxy = createTcpProxy(
-    () => {
-      calls++
-      return echoStream()
-    },
-    { port: 0, host: '127.0.0.1' },
-    () => {}
-  )
+  let proxy
+  const addr = await new Promise((resolve) => {
+    proxy = createTcpProxy(
+      () => {
+        calls++
+        return echoStream()
+      },
+      { port: 0, host: '127.0.0.1' },
+      () => resolve(proxy.address())
+    )
+  })
   t.teardown(() => proxy.close())
 
-  const addr = await listenTcp(proxy)
   const c1 = net.connect(addr.port, '127.0.0.1')
   const c2 = net.connect(addr.port, '127.0.0.1')
   t.teardown(() => {
@@ -67,14 +69,16 @@ test('createTcpProxy - invokes the tunnel factory once per incoming connection',
 })
 
 test('createTcpProxy - two connections stay isolated from each other', async function (t) {
-  const proxy = createTcpProxy(
-    () => echoStream(),
-    { port: 0, host: '127.0.0.1' },
-    () => {}
-  )
+  let proxy
+  const addr = await new Promise((resolve) => {
+    proxy = createTcpProxy(
+      () => echoStream(),
+      { port: 0, host: '127.0.0.1' },
+      () => resolve(proxy.address())
+    )
+  })
   t.teardown(() => proxy.close())
 
-  const addr = await listenTcp(proxy)
   const c1 = net.connect(addr.port, '127.0.0.1')
   const c2 = net.connect(addr.port, '127.0.0.1')
   t.teardown(() => {
@@ -96,13 +100,15 @@ test('createTcpProxy - two connections stay isolated from each other', async fun
 })
 
 test('createTcpProxy - closing the proxy destroys any still-open connections', async function (t) {
-  const proxy = createTcpProxy(
-    () => echoStream(),
-    { port: 0, host: '127.0.0.1' },
-    () => {}
-  )
+  let proxy
+  const addr = await new Promise((resolve) => {
+    proxy = createTcpProxy(
+      () => echoStream(),
+      { port: 0, host: '127.0.0.1' },
+      () => resolve(proxy.address())
+    )
+  })
 
-  const addr = await listenTcp(proxy)
   const client = net.connect(addr.port, '127.0.0.1')
   client.on('error', () => {}) // the far end destroys mid-flight; ECONNRESET is expected here
   t.teardown(() => client.destroy())
