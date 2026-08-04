@@ -30,9 +30,9 @@
   "homepage": "https://github.com/holesail/hyper-cmd-lib-net/",
   "dependencies": {
     "bare-dgram": "^1.0.1",
-    "bare-net": "^2.3.2",
-    "bare-tcp": "^2.5.3",
-    "net": "npm:bare-net@^2.3.2"
+    "bare-net": "^2.3.3",
+    "bare-tcp": "^2.5.4",
+    "net": "npm:bare-net@^2.3.3"
   },
   "devDependencies": {
     "brittle": "^4.0.0",
