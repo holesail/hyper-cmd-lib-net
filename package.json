@@ -1,6 +1,6 @@
 {
   "name": "@holesail/hyper-cmd-lib-net",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Network library to pipe local and hypderdht udp/tcp streams",
   "main": "index.js",
   "scripts": {
