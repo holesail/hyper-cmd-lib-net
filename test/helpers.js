@@ -1,6 +1,6 @@
 const { Duplex } = require('streamx')
 const net = require('net')
-const dgram = require('bare-dgram')
+const dgram = require('dgram')
 
 function fakeSocket() {
   const written = []
